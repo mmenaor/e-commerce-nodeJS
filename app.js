@@ -12,6 +12,8 @@ const { AppError } = require('./utils/appError.util');
 
 // Routers
 const { usersRouter } = require('./routes/users.routes');
+const { productsRouter } = require('./routes/products.routes');
+const { cartsRouter } = require('./routes/cart.routes');
 
 // Init express app
 const app = express();
@@ -37,6 +39,8 @@ else app.use(morgan('combined'));
 
 // Define endpoints
 app.use('/api/v1/users', usersRouter);
+app.use('/api/v1/products', productsRouter);
+app.use('/api/v1/carts', cartsRouter);
 
 //Hanlde incoming unknown routes to the server
 app.all('*', (req, res, next) => {

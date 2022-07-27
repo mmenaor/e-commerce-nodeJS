@@ -39,7 +39,7 @@ const createUser = catchAsync(async (req, res, next) => {
     //Remove password from response
     newUser.password = undefined;
 
-    await new Email(email).sendWelcome(username);
+    // await new Email(email).sendWelcome(username);
 
     res.status(201).json({
         status: 'success',
