@@ -39,7 +39,7 @@ const createUser = catchAsync(async (req, res, next) => {
     //Remove password from response
     newUser.password = undefined;
 
-    // await new Email(email).sendWelcome(username);
+    await new Email(email).sendWelcome(username);
 
     res.status(201).json({
         status: 'success',
@@ -63,6 +63,10 @@ const getUsersProducts = catchAsync(async (req, res, next) => {
 const updateUser = catchAsync(async (req, res, next) => {
     const { user } = req;
     const { username, email } = req.body;
+
+    if(!username || !email){
+        return next(new AppError('You must provide an email and username', 400));
+    }
 
     await user.update({ username, email });
 
@@ -139,6 +143,10 @@ const getOrderById = catchAsync(async (req, res, next) => {
             }]
         }]
     });
+
+    if(!order){
+        return next(new AppError('Order does not exist', 400));
+    }
 
     res.status(200).json({
         status: 'success',

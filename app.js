@@ -13,13 +13,15 @@ const { AppError } = require('./utils/appError.util');
 // Routers
 const { usersRouter } = require('./routes/users.routes');
 const { productsRouter } = require('./routes/products.routes');
-const { cartsRouter } = require('./routes/cart.routes');
+const { cartsRouter } = require('./routes/carts.routes');
 
 // Init express app
 const app = express();
 
 // Add to the app the json method
 app.use(express.json());
+
+app.set('view engine', 'pug');
 
 // Limit the number of requests that can be accepted to our server
 const limiter = rateLimit({

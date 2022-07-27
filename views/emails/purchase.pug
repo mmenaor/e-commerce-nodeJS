@@ -3,14 +3,12 @@ extends base
 block emailContent
     p Hi #{name}
         p Here are your products
-        table.btn.btn-primary(role="presentation", border="0", cellpadding="0", cellspacing="0")
-            tbody
-                tr
-                    td(align="left")
-                        table(role="presentation", border="0", cellpadding="0", cellspacing="0")
-                            tbody
-                                tr
-                                    td
-                                        a(href="http://htmlemail.io", target="_blank") Call To Action
-        p This is a really simple email template. Its sole purpose is to get the recipient to click the button with no distractions.
-        p Good luck! Hope it works.
+        ul
+            each product in products
+                li 
+                    h3 Product: #{product.productName}
+                    h4 Unit price: #{product.unitPrice}
+                    h4 Quantity: #{product.purchaseQuantity}
+                    h4 Subtotal: #{product.subTotal}
+        h2 Total price:
+        strong #{totalPrice}

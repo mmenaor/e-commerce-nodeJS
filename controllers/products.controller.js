@@ -30,7 +30,7 @@ const createProduct = catchAsync(async (req, res, next) => {
         userId: sessionUser.id
     });
 
-    if (req.files.length > 0) {
+    if (req.files && req.files.length > 0) {
 		const filesPromises = req.files.map(async file => {
 			const imgRef = ref(storage, `products/${Date.now()}_${file.originalname}`);
 			const imgRes = await uploadBytes(imgRef, file.buffer);

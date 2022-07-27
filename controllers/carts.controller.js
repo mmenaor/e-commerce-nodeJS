@@ -3,15 +3,15 @@ const dotenv = require('dotenv');
 
 //Models
 const { Product } = require('../models/product.model');
-const { Category } = require('../models/category.model');
-const { ProductImg } = require('../models/productImg.model');
 const { Cart } = require('../models/cart.model');
 const { ProductsInCart } = require('../models/productsInCart.model');
+const { Order } = require('../models/order.model');
 
 //Utils
 const { catchAsync } = require('../utils/catchAsync.util');
 const { AppError } = require('../utils/appError.util');
 const { storage } = require('../utils/firebase.util');
+const { Email } = require('../utils/email.util');
 
 dotenv.config({ path: './config.env' });
 
@@ -30,10 +30,10 @@ const addProductToCart = catchAsync(async (req, res, next) => {
     const usersCart = await Cart.findOne({ where: { userId: sessionUser.id, status: 'active' }});
 
     if(!usersCart){
-        usersCart = await Cart.create({ userId: sessionUser.id })
+        const newCart = await Cart.create({ userId: sessionUser.id })
 
         await ProductsInCart.create({
-            cartId: usersCart.id,
+            cartId: newCart.id,
             productId,
             quantity
         })
@@ -59,29 +59,40 @@ const addProductToCart = catchAsync(async (req, res, next) => {
 
 //NOT DONE
 const updateProductInCart = catchAsync(async (req, res, next) => {
-    const { productId, newQuantity } =  req.body;
+    const { productId, newQty } =  req.body;
     const { sessionUser } = req;
 
-    //Look for the users cart
-    //Validate product stock
-    //If quantity = 0, then change status to removed
-    //If product is added again (being its status as removed, then change status to active and add quantity)
-    const product = await Product.findOne({ where: productId, status: 'active' });
+    const product = await Product.findOne({ where: { id: productId, status: 'active' } });
 
     if(!product){
-        return next(new AppError('Invalid Product', 404))
+        return next(new AppError('Invalid Product', 404));
+    } else if (newQty > product.quantity) {
+        return next(new AppError(`This product only has ${product.quantity} items available`, 400));
     }
 
-    const cart = await Cart.findOne({ where: { userId: sessionUser.id, status: 'active' } });
+    const cart = await Cart.findOne({ where: { userId: sessionUser.id, status:'active' } });
 
     if(!cart){
-        return next(new AppError('You need to add products at your cart'))
+        return next(new AppError('You do not have a cart yet', 404));
     }
 
+    const productInCart = await ProductsInCart.findOne({ cartId: cart.id, productId, status: 'active' });
+
+    if(!productInCart){
+        return next(new AppError('Product is not in your cart'), 404);
+    }
+
+    if(newQty <= 0){
+        await productInCart.update({ quantity: 0, status: 'removed' });
+    } else {
+        await productInCart.update({ quantity: newQty })
+    }
+
+    res.status(200).json({ status: 'success' });
 });
 
 const deleteProductFromCart = catchAsync(async (req, res, next) => {
-    const { productId } = req.body;
+    const { productId } = req.params;
     const { sessionUser } = req;
 
     const cart = await Cart.findOne({ where: { userId: sessionUser.id, status: 'active' } });
@@ -102,16 +113,57 @@ const deleteProductFromCart = catchAsync(async (req, res, next) => {
 });
 
 const purchaseCart = catchAsync(async (req, res, next) => {
-    const { title, description, price, quantity } = req.body;
-    const { sessionUser, product } = req;
+    const { sessionUser } = req;
 
-    if(sessionUser.id !== product.userId){
-        return next(new AppError('You can only modify your own products', 400));
+    const cart = await Cart.findOne({ 
+        where: {userId: sessionUser.id, status: 'active'},
+        include: [{ 
+            model: ProductsInCart, 
+            required: false, 
+            where:{ status: 'active' }, 
+            include: { model: Product } 
+        }]
+    });
+
+    if(!cart){
+        return next(new AppError('Cart does not exist', 404))
     }
 
-    await product.update({ title, description, price, quantity });
+    let totalPrice = 0;
+    const emailInfo = [];
 
-    res.status(204).json({ status: 'success' });
+    const purchasePromises = cart.productsInCarts.map(async productInCart => {
+        const newQuantity = productInCart.product.quantity - productInCart.quantity;
+
+        const subTotal = productInCart.quantity * +productInCart.product.price;
+
+        totalPrice += subTotal;
+
+        emailInfo.push({
+            productName: productInCart.product.title,
+            unitPrice: +productInCart.product.price,
+            purchaseQuantity: productInCart.quantity,
+            subTotal
+        });
+
+        await productInCart.product.update({ quantity: newQuantity });
+
+        await productInCart.update ({ status: 'purchased' });
+    });
+
+    await Promise.all(purchasePromises);
+
+    await cart.update({ status: 'purchased' });
+
+    await Order.create({
+        userId: sessionUser.id,
+        cartId: cart.id,
+        totalPrice
+    })
+
+    await new Email(sessionUser.email).sendPurchase(sessionUser.username, emailInfo, totalPrice);
+
+    res.status(200).json({ status: 'success' });
 });
 
 module.exports = { 
