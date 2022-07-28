@@ -31,7 +31,7 @@ productsRouter.get('/:id', productExists, getProductById);
 
 productsRouter.use(protectSession);
 
-productsRouter.post('/', upload.array("productImg", 5), createProduct);
+productsRouter.post('/', upload.array("productImg", 5), createProductValidators, createProduct);
 
 productsRouter.patch('/:id', productExists, updateProduct);
 

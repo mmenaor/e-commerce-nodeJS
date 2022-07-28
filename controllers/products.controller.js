@@ -17,10 +17,6 @@ const createProduct = catchAsync(async (req, res, next) => {
     const { title, description, price, categoryId, quantity } = req.body;
     const { sessionUser } = req;
 
-    if(sessionUser.role === "normal"){
-        return next(new AppError('Credentials invalid', 400));
-    }
-
     const newProduct = await Product.create({ 
         title,
         description,
